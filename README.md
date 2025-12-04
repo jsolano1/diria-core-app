@@ -101,7 +101,7 @@ El corazón del sistema. Utiliza un grafo de estados para manejar la conversaci�
     *   **Integración**: Conector simulado para **ServiceNow** (Incident Management).
     *   **Capacidades**: Crear, Leer, Actualizar y Cerrar incidentes.
 *   **Vision Agent**:
-    *   **Motor**: Gemini 1.5 Flash (Multimodal).
+    *   **Motor**: Gemini 2.5 Flash (Multimodal).
     *   **Capacidades**: Análisis de imágenes, extracción de datos de facturas o daños en vehículos.
 
 #### 3. Servicios Core
@@ -111,7 +111,7 @@ El corazón del sistema. Utiliza un grafo de estados para manejar la conversaci�
 ### Stack Tecnológico
 *   **Lenguaje**: Python 3.11+
 *   **Framework AI**: LangChain / LangGraph / Google GenAI SDK
-*   **Modelos**: Gemini 1.5 Flash (Balance ideal entre velocidad y costo).
+*   **Modelos**: Gemini 2.5 Flash (Balance ideal entre velocidad y costo).
 *   **Base de Datos**:
     *   Cloud SQL (PostgreSQL) para vectores y datos relacionales.
     *   Firestore para sesiones y chat history.
@@ -131,7 +131,7 @@ El corazón del sistema. Utiliza un grafo de estados para manejar la conversaci�
 ```bash
 GCP_PROJECT_ID=tu-proyecto-id
 LOCATION=us-central1
-GEMINI_MODEL_ID=gemini-1.5-flash
+GEMINI_MODEL_ID=gemini-2.5-flash
 DB_CONNECTION_NAME=proyecto:region:instancia
 DB_USER=postgres
 DB_PASS=secreto
