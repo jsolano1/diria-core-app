@@ -4,15 +4,17 @@ from langgraph.graph import StateGraph, END
 from google import genai
 from google.genai import types
 from src.config import settings
-from src.tools.helpdesk_tools import tools_list as helpdesk_tools
+from src.tools.helpdesk_tools import tools_list as helpdesk_tools, crear_tiquete_tool
 from src.tools.dwh_tools import dwh_tools_list
-from src.tools.knowledge_tools import search_knowledge_base_tool
+from src.tools.knowledge_tools import search_knowledge_base_tool, upload_document_tool
 from src.tools.general_tools import tools_list as general_tools
 from src.utils.firestore_storage import FirestoreSaver
 from src.utils.logging_utils import log_structured
 from src.utils.prompt_loader import load_prompt
 
-all_tools = helpdesk_tools + dwh_tools_list + [search_knowledge_base_tool] + general_tools
+# Define Tool Sets
+full_tools = helpdesk_tools + dwh_tools_list + [search_knowledge_base_tool, upload_document_tool] + general_tools
+lite_tools = [search_knowledge_base_tool, crear_tiquete_tool] + general_tools
 
 _COMPILED_GRAPH = None
 _GEMINI_CLIENT = None
@@ -27,14 +29,19 @@ class AgentState(TypedDict):
     messages: List[types.Content]
     user_email: str
     origin: str 
+    mode: str # 'full' or 'lite'
     generated_card: Optional[Dict[str, Any]]
 
 def agent_node(state: AgentState):
     messages = state["messages"]
     user_email = state.get("user_email", "usuario@connect.inc")
+    mode = state.get("mode", "full")
     
     prompt_template = load_prompt("system_prompt.md")
     system_prompt = prompt_template.format(user_email=user_email) if prompt_template else f"Eres DirIA. Usuario: {user_email}."
+
+    # Select tools based on mode
+    selected_tools = lite_tools if mode == "lite" else full_tools
 
     try:
         client = get_gemini_client()
@@ -42,7 +49,7 @@ def agent_node(state: AgentState):
             model=settings.GEMINI_MODEL_ID,
             contents=messages,
             config=types.GenerateContentConfig(
-                tools=all_tools,
+                tools=selected_tools,
                 system_instruction=system_prompt,
                 temperature=0.0
             )
@@ -86,6 +93,14 @@ def tools_execution_node(state: AgentState):
                 elif fn_name == "search_knowledge_base_tool":
                      from src.tools import knowledge_tools
                      result = knowledge_tools.search_knowledge_base_tool(**fn_args)
+
+                elif fn_name == "upload_document_tool":
+                     from src.tools import knowledge_tools
+                     result = knowledge_tools.upload_document_tool(**fn_args)
+
+                elif fn_name == "snow_connector_tool":
+                     from src.tools import helpdesk_tools
+                     result = helpdesk_tools.snow_connector_tool(**fn_args)
                      
                 elif fn_name == "responder_consultas_generales":
                      from src.tools import general_tools

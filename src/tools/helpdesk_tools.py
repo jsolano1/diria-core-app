@@ -1,4 +1,5 @@
 from src.services import ticket_manager
+from src.utils.logging_utils import log_structured
 
 def crear_tiquete_tool(descripcion: str, prioridad: str, equipo: str, solicitante_email: str = "unknown") -> str:
     """Crea un nuevo tiquete de soporte. Prioridad: 'alta', 'media', 'baja'."""
@@ -16,4 +17,25 @@ def consultar_estado_tool(ticket_id: str) -> str:
     """Consulta el estado actual de un tiquete por su ID (ej. dir-2025-XXXX)."""
     return ticket_manager.consultar_estado_tiquete(ticket_id)
 
-tools_list = [crear_tiquete_tool, cerrar_tiquete_tool, reasignar_tiquete_tool, consultar_estado_tool]
+def snow_connector_tool(operation: str, payload: dict, solicitante_email: str = "unknown") -> str:
+    """
+    Realiza operaciones CRUD en la tabla de Incidentes de ServiceNow.
+    Args:
+        operation: 'CREATE', 'READ', 'UPDATE', 'DELETE'
+        payload: Diccionario con los datos del incidente (ej. {'short_description': '...', 'urgency': '1'})
+    """
+    # En un entorno real, esto usaría el Application Integration Connector.
+    # Aquí simulamos la respuesta.
+    import json
+    log_structured("SnowConnectorCall", operation=operation, user=solicitante_email, payload=payload)
+    
+    if operation == "CREATE":
+        return json.dumps({"result": "Incidente creado exitosamente", "sys_id": "mock_sys_id_123", "number": "INC0012345"})
+    elif operation == "READ":
+        return json.dumps({"result": "Incidente encontrado", "number": "INC0012345", "state": "New", "short_description": "Mock Incident"})
+    elif operation == "UPDATE":
+        return json.dumps({"result": "Incidente actualizado", "number": "INC0012345"})
+    else:
+        return json.dumps({"result": "Operación simulada completada"})
+
+tools_list = [crear_tiquete_tool, cerrar_tiquete_tool, reasignar_tiquete_tool, consultar_estado_tool, snow_connector_tool]
