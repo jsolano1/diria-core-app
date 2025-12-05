@@ -29,9 +29,13 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
         try:
             cur.execute("SET search_path TO core, helpdesk, claims, public")
             conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Error configurando search_path: {e}")
+            raise e
         finally:
-            cur.close() 
-        
+            cur.close()
+            
         return conn
 
     try:
@@ -49,6 +53,10 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
         raise
 
 def get_dm_space_name_for_user(user_email: str) -> str | None:
+    """
+    Consulta la DB de Postgres para obtener el chat_user_id (space_name del DM 1:1).
+    Este ID (ej. spaces/AAAA...) es necesario para enviar mensajes privados via API.
+    """
     if not user_email: return None
     
     engine = get_db_connection()
@@ -65,6 +73,9 @@ def get_dm_space_name_for_user(user_email: str) -> str | None:
         return None
 
 def check_dwh_permission(user_email: str) -> bool:
+    """
+    Verifica en la tabla roles_usuarios si el usuario tiene permiso 'can_query_dwh'.
+    """
     if not user_email: return False
     engine = get_db_connection()
     try:
@@ -77,6 +88,7 @@ def check_dwh_permission(user_email: str) -> bool:
         return False
 
 def get_all_departments():
+    """Obtiene lista de departamentos."""
     engine = get_db_connection()
     try:
         with engine.connect() as conn:
@@ -87,7 +99,8 @@ def get_all_departments():
         return []
 
 def get_all_priorities():
-        engine = get_db_connection()
+    """Obtiene lista de prioridades."""
+    engine = get_db_connection()
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT DISTINCT priority FROM sla_configuracion"))
