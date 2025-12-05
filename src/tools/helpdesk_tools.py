@@ -38,4 +38,10 @@ def snow_connector_tool(operation: str, payload: dict, solicitante_email: str = 
     else:
         return json.dumps({"result": "Operación simulada completada"})
 
-tools_list = [crear_tiquete_tool, cerrar_tiquete_tool, reasignar_tiquete_tool, consultar_estado_tool, snow_connector_tool]
+def consultar_tiquetes_nlp_tool(query: str, solicitante_email: str = "unknown") -> str:
+    """
+    Consulta tiquetes usando lenguaje natural (ej. 'mis tiquetes abiertos', 'tiquetes de mi equipo').
+    """
+    return ticket_manager.consultar_tiquetes_nlp(query, solicitante_email)
+
+tools_list = [crear_tiquete_tool, cerrar_tiquete_tool, reasignar_tiquete_tool, consultar_estado_tool, snow_connector_tool, consultar_tiquetes_nlp_tool]

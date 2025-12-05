@@ -164,3 +164,97 @@ def consultar_estado_tiquete(ticket_id: str) -> str:
             return f"📋 *Estado del Tiquete {ticket_id}*\n- Estado: *{res[0]}*\n- Título: {res[1]}\n- Equipo: {res[2]}"
     except Exception as e:
         return f"Error consultando DB: {str(e)}"
+
+def consultar_tiquetes_nlp(query: str, solicitante_email: str) -> str:
+    """
+    Consulta tiquetes usando lenguaje natural, aplicando filtros de seguridad.
+    """
+    log_structured("TicketNLPStart", user=solicitante_email, query=query)
+    
+    engine = get_db_connection()
+    
+    # 1. Determinar Contexto de Seguridad
+    security_context = f"Restringir a Solicitante = '{solicitante_email}'" # Default: Solo sus tiquetes
+    
+    try:
+        with engine.connect() as conn:
+            # Verificar rol y compañía
+            # Asumimos tabla roles_usuarios(user_email, role, company_id)
+            # Si no existe, fallará y usaremos el default (solo sus tiquetes)
+            user_data = conn.execute(text(
+                "SELECT role, company_id FROM roles_usuarios WHERE lower(user_email) = lower(:email)"
+            ), {"email": solicitante_email}).fetchone()
+            
+            if user_data:
+                role, company_id = user_data
+                if role == 'admin':
+                    security_context = "Admin: Sin restricciones de seguridad. Puedes ver todos los tiquetes."
+                elif role == 'company_admin' and company_id:
+                    # Obtener todos los emails de la compañía para filtrar
+                    # O si la tabla tickets tuviera company_id sería más fácil, pero asumimos link por email
+                    emails_res = conn.execute(text(
+                        "SELECT user_email FROM roles_usuarios WHERE company_id = :cid"
+                    ), {"cid": company_id}).fetchall()
+                    emails = [r[0] for r in emails_res]
+                    if emails:
+                        email_list = "', '".join(emails)
+                        security_context = f"Restringir a Solicitante IN ('{email_list}')"
+    except Exception as e:
+        log_structured("SecurityContextError", error=str(e), user=solicitante_email)
+        # Fallback seguro: mantener restricción solo al usuario
+    
+    # 2. Generar SQL con Gemini
+    prompt_template = load_prompt("generate_ticket_sql.md")
+    if not prompt_template:
+        return "Error: No pude cargar la configuración de IA para consultas."
+        
+    final_prompt = prompt_template.replace("{user_query}", query).replace("{security_context}", security_context)
+    
+    try:
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL_ID,
+            contents=final_prompt,
+            config=types.GenerateContentConfig(temperature=0.0)
+        )
+        generated_sql = response.text.replace("```sql", "").replace("```", "").strip()
+        
+        # Validación básica anti-inyección / destructiva
+        if any(x in generated_sql.upper() for x in ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE"]):
+            return "⛔ Por seguridad, solo puedo realizar consultas de lectura."
+            
+        log_structured("TicketSQLGenerated", sql=generated_sql)
+        
+        # 3. Ejecutar SQL
+        with engine.connect() as conn:
+            result = conn.execute(text(generated_sql))
+            rows = result.fetchall()
+            columns = result.keys()
+            
+            if not rows:
+                return f"No encontré resultados para tu consulta: '{query}'."
+                
+            # Formatear respuesta (Markdown simple)
+            output = f"📊 **Resultados ({len(rows)})**:\n\n"
+            
+            # Si es una sola fila y pocas columnas, mostrar detalle
+            if len(rows) == 1 and len(columns) < 10:
+                for col, val in zip(columns, rows[0]):
+                    output += f"- **{col}**: {val}\n"
+            else:
+                # Tabla markdown
+                header = "| " + " | ".join(columns) + " |"
+                separator = "| " + " | ".join(["---"] * len(columns)) + " |"
+                output += header + "\n" + separator + "\n"
+                
+                for row in rows[:10]: # Limitar a 10 filas en chat
+                    row_str = "| " + " | ".join([str(val) for val in row]) + " |"
+                    output += row_str + "\n"
+                
+                if len(rows) > 10:
+                    output += f"\n*(Mostrando primeros 10 de {len(rows)} resultados)*"
+            
+            return output
+
+    except Exception as e:
+        log_structured("TicketNLPError", error=str(e))
+        return f"Tuve un problema procesando tu consulta. Error: {str(e)}"

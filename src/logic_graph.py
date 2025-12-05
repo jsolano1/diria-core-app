@@ -85,7 +85,7 @@ def tools_execution_node(state: AgentState):
                      from src.tools import dwh_tools
                      result = dwh_tools.consultar_dwh_tool(**fn_args)
                 
-                elif fn_name in ["crear_tiquete_tool", "cerrar_tiquete_tool", "reasignar_tiquete_tool", "consultar_estado_tool"]:
+                elif fn_name in ["crear_tiquete_tool", "cerrar_tiquete_tool", "reasignar_tiquete_tool", "consultar_estado_tool", "consultar_tiquetes_nlp_tool"]:
                      from src.tools import helpdesk_tools
                      func = getattr(helpdesk_tools, fn_name, None)
                      if func: result = func(**fn_args)
