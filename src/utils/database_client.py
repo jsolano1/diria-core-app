@@ -24,7 +24,9 @@ def get_db_connection() -> sqlalchemy.engine.base.Engine:
             db=settings.DB_NAME,
             ip_type=IPTypes.PUBLIC  
         )
-        conn.run("SET search_path TO core, helpdesk, claims, public")
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO core, helpdesk, claims, public")
+            conn.commit()
         return conn
 
     try:
