@@ -63,18 +63,18 @@ graph TD
     API -->|Orquestación| LangGraph[LangGraph Orchestrator]
     
     subgraph "Cerebro Dir-AI (Agentes)"
-        LangGraph --> KB[Agente Conocimiento]
-        LangGraph --> DWH[Agente Datos]
-        LangGraph --> Support[Agente Soporte]
-        LangGraph --> Vision[Agente Visión]
+        LangGraph --> KB["Agente Conocimiento"]
+        LangGraph --> DWH["Agente Datos"]
+        LangGraph --> Support["Agente Soporte"]
+        LangGraph --> Vision["Agente Visión"]
     end
     
     subgraph "Infraestructura & Datos"
-        KB -->|RAG| Postgres[Cloud SQL (pgvector)]
-        KB -->|Docs| GCS[Cloud Storage]
-        DWH -->|SQL| BQ[BigQuery]
-        Support -->|API| Snow[ServiceNow / CRM]
-        Vision -->|Multimodal| Gemini[Vertex AI Gemini]
+        KB -->|RAG| Postgres["Cloud SQL (pgvector)"]
+        KB -->|Docs| GCS["Cloud Storage"]
+        DWH -->|SQL| BQ["BigQuery"]
+        Support -->|API| Snow["ServiceNow / CRM"]
+        Vision -->|Multimodal| Gemini["Vertex AI Gemini"]
     end
 ```
 

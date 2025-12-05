@@ -25,20 +25,67 @@ def get_gemini_client():
         _GEMINI_CLIENT = genai.Client(vertexai=True, project=settings.GCP_PROJECT_ID, location=settings.LOCATION)
     return _GEMINI_CLIENT
 
+import datetime
+from src.services import subscription_service, memory_service
+
 class AgentState(TypedDict):
     messages: List[types.Content]
     user_email: str
     origin: str 
     mode: str # 'full' or 'lite'
     generated_card: Optional[Dict[str, Any]]
+    session_start_time: Optional[datetime.datetime]
+    language: Optional[str]
 
 def agent_node(state: AgentState):
     messages = state["messages"]
     user_email = state.get("user_email", "usuario@connect.inc")
     mode = state.get("mode", "full")
     
+    # 1. Check Subscription
+    if not subscription_service.check_subscription_status(user_email):
+        return {"messages": [types.Content(role="model", parts=[types.Part.from_text(text="🚫 **Acceso Denegado**: Tu suscripción no está activa o ha expirado. Contacta a tu administrador.")])]}
+
+    # 2. Check Session Timeout (24h)
+    now = datetime.datetime.now()
+    session_start = state.get("session_start_time")
+    
+    if session_start:
+        if (now - session_start).total_seconds() > 86400: # 24 hours
+            # Reset history but keep system context if needed (LangGraph usually handles history in 'messages')
+            # We'll just clear the messages list except the very last one (the new user query)
+            if len(messages) > 1:
+                last_msg = messages[-1]
+                messages = [last_msg]
+                log_structured("SessionReset", user=user_email, reason="24h_timeout")
+            session_start = now # Reset timer
+    else:
+        session_start = now
+
+    # 3. Detect Language & Preferences
+    # Simple heuristic: Check last user message for language
+    last_text = ""
+    if messages and messages[-1].parts:
+        last_text = messages[-1].parts[0].text or ""
+    
+    # Default to Spanish unless English detected
+    language_instruction = "Responde en Español."
+    if any(word in last_text.lower() for word in ["the", " is ", "what", "how ", "help"]):
+        language_instruction = "Answer in English."
+    
+    # Fetch User Preferences (Long Term Memory)
+    preferences = memory_service.get_relevant_preferences(user_email, last_text)
+    prefs_text = "\n".join([f"- {p}" for p in preferences]) if preferences else "No hay preferencias registradas."
+
     prompt_template = load_prompt("system_prompt.md")
-    system_prompt = prompt_template.format(user_email=user_email) if prompt_template else f"Eres DirIA. Usuario: {user_email}."
+    if prompt_template:
+        system_prompt = prompt_template.format(
+            user_email=user_email,
+            user_preferences=prefs_text,
+            language_instruction=language_instruction
+        )
+    else:
+        system_prompt = f"Eres DirIA. Usuario: {user_email}. {language_instruction}"
 
     # Select tools based on mode
     selected_tools = lite_tools if mode == "lite" else full_tools
@@ -54,7 +101,10 @@ def agent_node(state: AgentState):
                 temperature=0.0
             )
         )
-        return {"messages": [response.candidates[0].content]}
+        return {
+            "messages": [response.candidates[0].content], 
+            "session_start_time": session_start
+        }
     except Exception as e:
         log_structured("LLMError", error=str(e))
         return {"messages": [types.Content(role="model", parts=[types.Part.from_text(text="Error técnico en el modelo.")])]}
