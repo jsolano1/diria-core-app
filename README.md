@@ -104,7 +104,13 @@ El corazón del sistema. Utiliza un grafo de estados para manejar la conversaci�
     *   **Motor**: Gemini 2.5 Flash (Multimodal).
     *   **Capacidades**: Análisis de imágenes, extracción de datos de facturas o daños en vehículos.
 
-#### 3. Servicios Core
+
+#### 3. Nuevas Características (v1.2.0)
+*   **Geolocalización y Registro**: Captura automática de ubicación por IP.
+*   **Claims MCP**: Servidor MCP para el agente de reclamos (`src/mcp/claims_mcp.py`).
+*   **Roles enriquecidos**: Metadata extendida en `roles_usuarios`.
+
+#### 4. Servicios Core
 *   **Notification Service**: Sistema planificado para envío multicanal (Email, Chat, SMS) de alertas y seguimientos.
 *   **API**: Desarrollada en **FastAPI** (Python), expuesta vía Cloud Run.
 

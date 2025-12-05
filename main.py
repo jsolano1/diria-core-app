@@ -131,6 +131,9 @@ async def upload_claims(
 
 app.include_router(claims_router)
 
+from src.api.user_router import router as user_router
+app.include_router(user_router)
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)

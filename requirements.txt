@@ -20,3 +20,4 @@ python-dotenv
 google-cloud-bigquery
 python-multipart
 Pillow
+mcp
